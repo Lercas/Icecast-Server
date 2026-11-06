@@ -152,6 +152,10 @@ void event_stream_initialise(void)
 
 void event_stream_shutdown(void)
 {
+    /* startup can fail before the subsystem was initialised */
+    if (!client_tree)
+        return;
+
     thread_mutex_lock(&event_stream_event_mutex);
     alive = false;
     thread_mutex_unlock(&event_stream_event_mutex);
