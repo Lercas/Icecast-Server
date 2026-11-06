@@ -491,6 +491,8 @@ ends.</p>
 <dd>Setting this will add the specified subtype to the stats (and therefore directory listings) for this mountpoint.
   The subtype is really to help the directory server to identify the components of the type.
   An example setting is vorbis/theora and indicates the codecs in an Ogg stream</dd>
+<dt>rewind-size</dt>
+<dd>Bytes of the stream kept for listeners who start in the past, off by default. A listener requests it with <code>?rewind=SECONDS</code>, for example <code>/stream.mp3?rewind=300</code>, and is served from that point at a little over realtime. The window held is announced in the <code>X-Icecast-Rewind-Available</code> response header and in the <code>rewind_available</code> statistic, both in seconds. A request beyond the window starts at its oldest data, and an invalid value is ignored. The window is held in memory on top of <code>queue-size</code>: 300 seconds take about 4.8 MB at 128 kbit/s and 7.2 MB per minute of 16 bit, 44.1 kHz FLAC is a reasonable upper estimate.</dd>
 <dt>burst-size</dt>
 <dd>This optional setting allows for providing a burst size which overrides the default burst size as defined in limits.
   The value is in bytes.</dd>

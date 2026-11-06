@@ -33,6 +33,9 @@
 
 #include <vorbis/codec.h>
 
+#include <stdio.h>
+#include <time.h>
+#include "common/timing/timing.h"
 #include "connection.h"
 #include "refbuf.h"
 
@@ -119,9 +122,49 @@ int format_get_plugin(format_type_t type, source_t *source)
 /* clients need to be start from somewhere in the queue so we will look for
  * a refbuf which has been previously marked as a sync point.
  */
+/* Start of the rewind window for this listener, and pace it from there on. */
+static refbuf_t *find_rewind_start(source_t *source, client_t *client)
+{
+    const time_t oldest = time(NULL) - client->rewind_seconds;
+    refbuf_t *start = source->rewind_point;
+    refbuf_t *refbuf;
+    uint64_t bytes = 0;
+    time_t seconds;
+
+    while (start && !(start->sync_point && start->timestamp >= oldest))
+        start = start->next;
+    if (start == NULL || source->stream_data_tail == NULL)
+        return NULL;
+
+    for (refbuf = start; refbuf; refbuf = refbuf->next)
+        bytes += refbuf->len;
+    seconds = source->stream_data_tail->timestamp - start->timestamp;
+    if (seconds > 0) {
+        client->rewind_rate = bytes / seconds;
+        client->rewind_start_ms = timing_get_time();
+        client->rewind_sent = 0;
+    }
+
+    return start;
+}
+
 static void find_client_start(source_t *source, client_t *client)
 {
     refbuf_t *refbuf = source->burst_point;
+
+    /* only at connection time: a listener moved to a fallback goes live */
+    if (client->rewind_seconds) {
+        refbuf_t *start = find_rewind_start(source, client);
+
+        client->rewind_seconds = 0;
+        if (start) {
+            client_set_queue(client, start);
+            client->check_buffer = format_advance_queue;
+            client->write_to_client = source->format->write_buf_to_client;
+            client->intro_offset = -1;
+            return;
+        }
+    }
 
     /* we only want to attempt a burst at connection time, not midstream
      * however streams like theora may not have the most recent page marked as
@@ -379,6 +422,19 @@ static int format_prepare_headers (source_t *source, client_t *client)
     ptr += bytes;
 
     /* iterate through source http headers and send to client */
+    /* tells players how far back they can go */
+    if (source->rewind_point && source->stream_data_tail) {
+        bytes = snprintf(ptr, remaining, "X-Icecast-Rewind-Available: %ld\r\n",
+                (long)(source->stream_data_tail->timestamp - source->rewind_point->timestamp));
+        if (bytes <= 0 || (size_t)bytes >= remaining) {
+            ICECAST_LOG_ERROR("Can not allocate headers for client %p", client);
+            client->respcode = 500;
+            return -1;
+        }
+        remaining -= bytes;
+        ptr += bytes;
+    }
+
     avl_tree_rlock(source->parser->vars);
     node = avl_get_first(source->parser->vars);
     while (node)

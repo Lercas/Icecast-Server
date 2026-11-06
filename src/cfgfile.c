@@ -71,6 +71,7 @@
 #define CONFIG_MAX_LISTENERS            (CONFIG_MAX_CLIENT_LIMIT/2)
 #define CONFIG_DEFAULT_QUEUE_SIZE_LIMIT (500*1024)
 #define CONFIG_MAX_QUEUE_SIZE_LIMIT     (16 *1024*1024)
+#define CONFIG_MAX_REWIND_SIZE          (1 << 30)
 #define CONFIG_DEFAULT_BODY_SIZE_LIMIT  (4*1024)
 #define CONFIG_MIN_BODY_SIZE_LIMIT      ( 1*1024)
 #define CONFIG_MAX_BODY_SIZE_LIMIT      (64*1024)
@@ -1781,6 +1782,7 @@ static void _parse_mount(xmlDocPtr      doc,
     mount->mounttype            = MOUNT_TYPE_NORMAL;
     mount->max_listeners        = -1;
     mount->burst_size           = -1;
+    mount->rewind_size          = -1;
     mount->mp3_meta_interval    = -1;
     mount->yp_public            = -1;
     mount->max_history          = -1;
@@ -1921,6 +1923,8 @@ static void _parse_mount(xmlDocPtr      doc,
             __read_unsigned_int(configuration, doc, node, &mount->source_timeout, CONFIG_RANGE_SOURCE_TIMEOUT);
         } else if (xmlStrcmp(node->name, XMLSTR("burst-size")) == 0) {
             __read_int(configuration, doc, node, &mount->burst_size, 0, CONFIG_MAX_QUEUE_SIZE_LIMIT);
+        } else if (xmlStrcmp(node->name, XMLSTR("rewind-size")) == 0) {
+            __read_int(configuration, doc, node, &mount->rewind_size, 0, CONFIG_MAX_REWIND_SIZE);
         } else if (xmlStrcmp(node->name, XMLSTR("cluster-password")) == 0) {
             mount->cluster_password = (char *)xmlNodeListGetString(doc,
                 node->xmlChildrenNode, 1);
@@ -3156,6 +3160,8 @@ static void merge_mounts(mount_proxy * dst, mount_proxy * src)
         dst->allow_direct_access = src->allow_direct_access;
     if (dst->burst_size == -1)
         dst->burst_size = src->burst_size;
+    if (dst->rewind_size == -1)
+        dst->rewind_size = src->rewind_size;
     if (!dst->queue_size_limit)
         dst->queue_size_limit = src->queue_size_limit;
     if (!dst->hidden)

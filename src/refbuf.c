@@ -55,6 +55,7 @@ refbuf_t *refbuf_new (unsigned int size)
     }
     refbuf->len = size;
     refbuf->sync_point = 0;
+    refbuf->timestamp = 0;
     refbuf->_count = 1;
     refbuf->next = NULL;
     refbuf->associated = NULL;

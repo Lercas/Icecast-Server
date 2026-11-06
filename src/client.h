@@ -34,6 +34,8 @@
 #define CLIENT_DEFAULT_ERROR_XSL_PLAINTEXT              "error-plaintext.xsl"
 #define CLIENT_DEFAULT_ADMIN_FORMAT                     ADMIN_FORMAT_HTML
 
+#include <stdint.h>
+
 typedef enum _document_domain_tag {
     DOCUMENT_DOMAIN_WEB,
     DOCUMENT_DOMAIN_ADMIN
@@ -120,6 +122,13 @@ struct _client_tag {
 
     /* is client getting intro data */
     long intro_offset;
+
+    /* seconds into the past the listener asked to start from, 0 for live */
+    unsigned int rewind_seconds;
+    /* pacing of a listener catching up: bytes per second, 0 when not paced */
+    uint64_t rewind_rate;
+    uint64_t rewind_start_ms;
+    uint64_t rewind_sent;
 
     /* where in the queue the client is */
     refbuf_t *refbuf;

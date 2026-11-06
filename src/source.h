@@ -98,6 +98,10 @@ struct source_tag {
     unsigned int burst_offset; 
     refbuf_t *burst_point;
 
+    unsigned int rewind_size;   /* bytes kept for listeners starting in the past */
+    unsigned int rewind_offset;
+    refbuf_t *rewind_point;
+
     unsigned int queue_size;
     unsigned int queue_size_limit;
 

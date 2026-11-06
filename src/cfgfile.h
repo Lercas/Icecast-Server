@@ -122,6 +122,7 @@ typedef struct _mount_proxy {
      * from global setting
      */
     int burst_size;
+    int rewind_size;
     unsigned int queue_size_limit;
     /* Do we list this on the xsl pages */
     int hidden;

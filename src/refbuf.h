@@ -18,6 +18,8 @@
 #ifndef __REFBUF_H__
 #define __REFBUF_H__
 
+#include <time.h>
+
 typedef struct _refbuf_tag
 {
     unsigned int len;
@@ -26,6 +28,8 @@ typedef struct _refbuf_tag
     struct _refbuf_tag *associated;
     struct _refbuf_tag *next;
     int sync_point;
+    /* time the buffer entered the source queue, used by rewind */
+    time_t timestamp;
 
 } refbuf_t;
 

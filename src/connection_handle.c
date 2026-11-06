@@ -351,6 +351,17 @@ static void __add_listener_to_source(source_t *source, client_t *client)
     client->refbuf->len = PER_CLIENT_REFBUF_SIZE;
     memset(client->refbuf->data, 0, PER_CLIENT_REFBUF_SIZE);
 
+    {
+        const char *rewind = httpp_get_query_param(client->parser, "rewind");
+
+        if (rewind) {
+            long seconds = strtol(rewind, NULL, 10);
+
+            if (seconds > 0 && seconds <= 86400)
+                client->rewind_seconds = (unsigned int)seconds;
+        }
+    }
+
     /* lets add the client to the active list */
     avl_tree_wlock(source->pending_tree);
     avl_insert(source->pending_tree, client);

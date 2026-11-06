@@ -1,0 +1,34 @@
+<icecast>
+  <location>test</location>
+  <admin>test@example.invalid</admin>
+  <limits>
+    <clients>100</clients>
+    <sources>10</sources>
+    <queue-size>65536</queue-size>
+    <client-timeout>30</client-timeout>
+    <header-timeout>15</header-timeout>
+    <source-timeout>10</source-timeout>
+    <burst-size>16384</burst-size>
+  </limits>
+  <authentication>
+    <source-password>rewind-test</source-password>
+    <admin-user>admin</admin-user>
+    <admin-password>rewind-test</admin-password>
+  </authentication>
+  <hostname>localhost</hostname>
+  <listen-socket><port>8000</port></listen-socket>
+  <mount type="normal"><mount-name>/rewind.mp3</mount-name><rewind-size>800000</rewind-size></mount>
+  <mount type="normal"><mount-name>/rewind.aac</mount-name><rewind-size>800000</rewind-size></mount>
+  <mount type="normal"><mount-name>/rewind.flac</mount-name><rewind-size>8000000</rewind-size></mount>
+  <paths>
+    <basedir>/usr/share/icecast</basedir>
+    <logdir>/tmp/icecast-test</logdir>
+    <webroot>/usr/share/icecast/web</webroot>
+    <adminroot>/usr/share/icecast/admin</adminroot>
+  </paths>
+  <logging>
+    <accesslog>access.log</accesslog>
+    <errorlog>error.log</errorlog>
+    <loglevel>information</loglevel>
+  </logging>
+</icecast>

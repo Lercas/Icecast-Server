@@ -47,6 +47,7 @@
 #include "common/avl/avl.h"
 #include "common/httpp/httpp.h"
 
+#include "common/timing/timing.h"
 #include "source.h"
 #include "compat.h"
 #include "connection.h"
@@ -301,6 +302,9 @@ void source_clear_source (source_t *source)
     source->burst_point = NULL;
     source->burst_size = 0;
     source->burst_offset = 0;
+    source->rewind_point = NULL;
+    source->rewind_size = 0;
+    source->rewind_offset = 0;
     source->queue_size = 0;
     source->queue_size_limit = 0;
     source->listeners = 0;
@@ -526,6 +530,8 @@ static refbuf_t *get_next_buffer (source_t *source)
 
             stats_event_args(source->mount, "total_bytes_read", "%"PRIu64, source->format->read_bytes);
             stats_event_args(source->mount, "total_bytes_sent", "%"PRIu64, source->format->sent_bytes);
+            if (source->rewind_point && source->stream_data_tail)
+                stats_event_args(source->mount, "rewind_available", "%ld", (long)(source->stream_data_tail->timestamp - source->rewind_point->timestamp));
             if (source->dumpfile) {
                 stats_event_args(source->mount, "dumpfile_written", "%"PRIu64, source->dumpfile_written);
             }
@@ -611,9 +617,25 @@ static void send_to_listener (source_t *source, client_t *client, int deletion_e
         if (client->check_buffer(source, client) < 0)
             break;
 
+        /* a listener in the past gets the window a little faster than realtime,
+         * never at once: most players would drop it when the listener leaves */
+        if (client->rewind_rate) {
+            if (client->refbuf == NULL || client->refbuf->next == NULL) {
+                client->rewind_rate = 0;
+            } else {
+                uint64_t elapsed = timing_get_time() - client->rewind_start_ms;
+
+                if (client->rewind_sent >= source->burst_size + elapsed * client->rewind_rate * 5 / 4 / 1000)
+                    break;
+            }
+        }
+
         bytes = client->write_to_client(client);
         if (bytes <= 0)
             break; /* can't write any more */
+
+        if (client->rewind_rate)
+            client->rewind_sent += bytes;
 
         total_written += bytes;
     }
@@ -844,13 +866,30 @@ void source_main (source_t *source)
                 break;
             }
 
+            /* keep older data for listeners starting in the past, the same way */
+            refbuf->timestamp = time(NULL);
+            if (source->rewind_size && source->rewind_point == NULL)
+                source->rewind_point = refbuf;
+            if (source->rewind_point) {
+                refbuf_addref(refbuf);
+                source->rewind_offset += refbuf->len;
+                while (source->rewind_offset > source->rewind_size && source->rewind_point->next) {
+                    refbuf_t *to_release = source->rewind_point;
+
+                    source->rewind_point = to_release->next;
+                    source->rewind_offset -= to_release->len;
+                    refbuf_release(to_release);
+                }
+            }
+
             /* save stream to file */
             if (source->dumpfile && source->format->write_buf_to_file)
                 source->format->write_buf_to_file(source, refbuf);
         }
         /* lets see if we have too much data in the queue, but don't remove it until later */
         thread_mutex_lock(&source->lock);
-        if (source->queue_size > source->queue_size_limit)
+        /* the rewind window is held on purpose, only what lags beyond it counts */
+        if ((uint64_t)source->queue_size > (uint64_t)source->queue_size_limit + source->rewind_size)
             remove_from_q = 1;
         thread_mutex_unlock(&source->lock);
 
@@ -1354,6 +1393,9 @@ static void source_apply_mount (ice_config_t *config, source_t *source, mount_pr
     if (mountinfo && mountinfo->burst_size >= 0)
         source->burst_size = (unsigned int) mountinfo->burst_size;
 
+    /* assigned once: the source thread reads it without the lock */
+    source->rewind_size = (mountinfo && mountinfo->rewind_size > 0) ? (unsigned int) mountinfo->rewind_size : 0;
+
     if (mountinfo && mountinfo->fallback_when_full)
         source->fallback_when_full = mountinfo->fallback_when_full;
 
@@ -1426,6 +1468,7 @@ void source_update_settings (ice_config_t *config, source_t *source, mount_proxy
     ICECAST_LOG_DEBUG("max listeners to %ld", source->max_listeners);
     ICECAST_LOG_DEBUG("queue size to %u", source->queue_size_limit);
     ICECAST_LOG_DEBUG("burst size to %u", source->burst_size);
+    ICECAST_LOG_DEBUG("rewind size to %u", source->rewind_size);
     ICECAST_LOG_DEBUG("source timeout to %u", source->timeout);
     ICECAST_LOG_DEBUG("fallback_when_full to %u", source->fallback_when_full);
     thread_mutex_unlock(&source->lock);
