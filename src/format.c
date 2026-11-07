@@ -148,6 +148,22 @@ static refbuf_t *find_rewind_start(source_t *source, client_t *client)
     return start;
 }
 
+/* First buffered page that is at most burst_seconds older than the live edge. */
+static refbuf_t *find_burst_start(source_t *source)
+{
+    refbuf_t *refbuf;
+    time_t oldest;
+
+    if (source->burst_seconds == 0 || source->stream_data_tail == NULL)
+        return source->burst_point;
+    oldest = source->stream_data_tail->timestamp - (time_t) source->burst_seconds;
+    for (refbuf = source->stream_data; refbuf; refbuf = refbuf->next) {
+        if (refbuf->timestamp >= oldest)
+            return refbuf;
+    }
+    return source->burst_point;
+}
+
 static void find_client_start(source_t *source, client_t *client)
 {
     refbuf_t *refbuf = source->burst_point;
@@ -172,6 +188,11 @@ static void find_client_start(source_t *source, client_t *client)
     if (client->intro_offset == -1 && source->stream_data_tail
             && source->stream_data_tail->sync_point)
         refbuf = source->stream_data_tail;
+    /* A fresh client starts with intro_offset 0, a client that already sent its
+     * intro file with -1. Both take the burst; a client in the middle of an
+     * intro file keeps the byte-based position. */
+    else if (client->intro_offset <= 0 && source->burst_seconds > 0)
+        refbuf = find_burst_start(source);
     else
     {
         size_t size = client->intro_offset;

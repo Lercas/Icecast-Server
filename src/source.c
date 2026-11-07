@@ -301,6 +301,7 @@ void source_clear_source (source_t *source)
 
     source->burst_point = NULL;
     source->burst_size = 0;
+    source->burst_seconds = 0;
     source->burst_offset = 0;
     source->rewind_point = NULL;
     source->rewind_size = 0;
@@ -1392,6 +1393,10 @@ static void source_apply_mount (ice_config_t *config, source_t *source, mount_pr
 
     if (mountinfo && mountinfo->burst_size >= 0)
         source->burst_size = (unsigned int) mountinfo->burst_size;
+
+    /* A sparse stream (lossless silence) fills a byte burst with minutes of audio. */
+    if (mountinfo && mountinfo->burst_seconds > 0)
+        source->burst_seconds = (unsigned int) mountinfo->burst_seconds;
 
     /* assigned once: the source thread reads it without the lock */
     source->rewind_size = (mountinfo && mountinfo->rewind_size > 0) ? (unsigned int) mountinfo->rewind_size : 0;

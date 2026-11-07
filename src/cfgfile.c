@@ -1260,6 +1260,8 @@ static void _set_defaults(ice_config_t *configuration)
     /* default to a typical prebuffer size used by clients */
     configuration
         ->burst_size = CONFIG_DEFAULT_BURST_SIZE;
+    configuration
+        ->burst_seconds = 0;
     configuration->tls_context
         .cipher_list = (char *) xmlCharStrdup(CONFIG_DEFAULT_CIPHER_LIST);
 }
@@ -1563,6 +1565,8 @@ static void _parse_limits(xmlDocPtr     doc,
                 xmlFree(tmp);
         } else if (xmlStrcmp(node->name, XMLSTR("burst-size")) == 0) {
             __read_unsigned_int(configuration, doc, node, &configuration->burst_size, 0, CONFIG_MAX_QUEUE_SIZE_LIMIT);
+        } else if (xmlStrcmp(node->name, XMLSTR("burst-seconds")) == 0) {
+            __read_int(configuration, doc, node, &configuration->burst_seconds, 0, 3600);
         } else {
             __found_bad_tag(configuration, node, BTR_UNKNOWN, NULL);
         }
@@ -1782,6 +1786,7 @@ static void _parse_mount(xmlDocPtr      doc,
     mount->mounttype            = MOUNT_TYPE_NORMAL;
     mount->max_listeners        = -1;
     mount->burst_size           = -1;
+    mount->burst_seconds        = -1;
     mount->rewind_size          = -1;
     mount->mp3_meta_interval    = -1;
     mount->yp_public            = -1;
@@ -1923,6 +1928,8 @@ static void _parse_mount(xmlDocPtr      doc,
             __read_unsigned_int(configuration, doc, node, &mount->source_timeout, CONFIG_RANGE_SOURCE_TIMEOUT);
         } else if (xmlStrcmp(node->name, XMLSTR("burst-size")) == 0) {
             __read_int(configuration, doc, node, &mount->burst_size, 0, CONFIG_MAX_QUEUE_SIZE_LIMIT);
+        } else if (xmlStrcmp(node->name, XMLSTR("burst-seconds")) == 0) {
+            __read_int(configuration, doc, node, &mount->burst_seconds, 0, 3600);
         } else if (xmlStrcmp(node->name, XMLSTR("rewind-size")) == 0) {
             __read_int(configuration, doc, node, &mount->rewind_size, 0, CONFIG_MAX_REWIND_SIZE);
         } else if (xmlStrcmp(node->name, XMLSTR("cluster-password")) == 0) {
@@ -3160,6 +3167,8 @@ static void merge_mounts(mount_proxy * dst, mount_proxy * src)
         dst->allow_direct_access = src->allow_direct_access;
     if (dst->burst_size == -1)
         dst->burst_size = src->burst_size;
+    if (dst->burst_seconds == -1)
+        dst->burst_seconds = src->burst_seconds;
     if (dst->rewind_size == -1)
         dst->rewind_size = src->rewind_size;
     if (!dst->queue_size_limit)
