@@ -95,6 +95,7 @@ struct source_tag {
 
     /* per source burst handling for connecting clients */
     unsigned int burst_size;    /* trigger level for burst on connect */
+    unsigned int burst_seconds; /* burst measured in seconds of audio instead */
     unsigned int burst_offset; 
     refbuf_t *burst_point;
 

@@ -122,6 +122,8 @@ typedef struct _mount_proxy {
      * from global setting
      */
     int burst_size;
+    /* How many seconds of audio to send to a new client, 0 to use burst_size bytes. */
+    int burst_seconds;
     int rewind_size;
     unsigned int queue_size_limit;
     /* Do we list this on the xsl pages */
@@ -259,6 +261,7 @@ struct ice_config_tag {
     int body_size_limit;
     unsigned int queue_size_limit;
     unsigned int burst_size;
+    int burst_seconds;
     int client_timeout;
     int header_timeout;
     int source_timeout;
